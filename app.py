@@ -1,9 +1,29 @@
-import io
-from datetime import datetime, timedelta
+import os
+import sys
+import subprocess
+import importlib
+
+# 🚀 終極作弊器：在網頁資料夾內建立一個專屬工具箱，強迫系統讀取
+local_libs = os.path.join(os.getcwd(), "local_packages")
+if local_libs not in sys.path:
+    sys.path.insert(0, local_libs)
+
+# 不管雲端系統多爛、不管它用什麼版本，強制在本地路徑下載工具
+for package, import_name in [("openpyxl", "openpyxl"), ("Pillow", "PIL")]:
+    try:
+        importlib.import_module(import_name)
+    except ImportError:
+        # 使用 --target 強制安裝在有權限的本地資料夾，百分之百成功
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--target", local_libs, package])
+        importlib.invalidate_caches()
+
+# --- 以下為原本的網頁主程式 ---
+import streamlit as st
 import openpyxl
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from PIL import Image
-import streamlit as st
+from datetime import datetime, timedelta
+import io
 
 st.title("📦 商品資料自動轉 Excel 工具")
 
