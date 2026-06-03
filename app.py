@@ -1,5 +1,12 @@
+import os
+import sys
 
-
+# 🔥 終極外掛：如果雲端系統偷懶漏裝工具，程式碼自己強制動手安裝！
+try:
+    import openpyxl
+    from PIL import Image
+except ImportError:
+    os.system(f"{sys.executable} -m pip install openpyxl Pillow")
 
 import streamlit as st
 import openpyxl
