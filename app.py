@@ -1,13 +1,20 @@
 import os
 import sys
 
-# 🔥 終極外掛：如果雲端系統偷懶漏裝工具，程式碼自己強制動手安裝！
+# 🚀 終極外掛：強制建立一個專屬的本地工具夾，把工具硬塞在裡面
+local_libs = os.path.join(os.getcwd(), "local_packages")
+if local_libs not in sys.path:
+    sys.path.insert(0, local_libs)
+
+# 檢查並強制在本地路徑下載工具，徹底繞過雲端伺服器權限問題
 try:
     import openpyxl
     from PIL import Image
 except ImportError:
-    os.system(f"{sys.executable} -m pip install openpyxl Pillow")
+    import subprocess
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--target", local_libs, "openpyxl", "Pillow"])
 
+# --- 以下為原本的網頁主程式 ---
 import streamlit as st
 import openpyxl
 from openpyxl.drawing.image import Image as OpenpyxlImage
