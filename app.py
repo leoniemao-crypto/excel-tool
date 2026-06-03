@@ -1,26 +1,22 @@
-import os
+import importlib
+import subprocess
 import sys
 
-# 🚀 終極外掛：強制建立一個專屬的本地工具夾，把工具硬塞在裡面
-local_libs = os.path.join(os.getcwd(), "local_packages")
-if local_libs not in sys.path:
-    sys.path.insert(0, local_libs)
-
-# 檢查並強制在本地路徑下載工具，徹底繞過雲端伺服器權限問題
-try:
-    import openpyxl
-    from PIL import Image
-except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--target", local_libs, "openpyxl", "Pillow"])
+# 🛠️ 終極外掛：直接在雲端環境中強制安裝工具，並「100% 強制刷新 Python 記憶體」
+for package, import_name in [("openpyxl", "openpyxl"), ("Pillow", "PIL")]:
+    try:
+        importlib.import_module(import_name)
+    except ImportError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+        importlib.invalidate_caches()  # 🔥 關鍵核心：強迫 Python 大腦重整，立刻認得新工具！
 
 # --- 以下為原本的網頁主程式 ---
-import streamlit as st
+import io
+from datetime import datetime, timedelta
 import openpyxl
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from PIL import Image
-from datetime import datetime, timedelta
-import io
+import streamlit as st
 
 st.title("📦 商品資料自動轉 Excel 工具")
 
