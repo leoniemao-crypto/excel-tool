@@ -26,7 +26,6 @@ import io
 
 st.set_page_config(page_title="LINE Pay 票券終極工具", layout="wide")
 
-# 💡 核心改良：引入「元件版本控制 ID」，一鍵切換時能強制刷新瀏覽器畫面的文字與照片
 if "clear_id" not in st.session_state:
     st.session_state["clear_id"] = 0
 
@@ -93,7 +92,7 @@ for i in range(1, 6):
                 "orig_price": p_orig_price,
                 "disc_price": p_disc_price,
                 "main_img": p_main_img,
-                "other_imgs": p_other_imgs[:10],
+                "other_imgs": p_other_imgs[:10] if p_other_imgs else [],
                 "desc": p_desc,
                 "spec": p_spec
             })
@@ -104,15 +103,11 @@ st.write("---")
 col_btn1, col_btn2 = st.columns([1, 4])
 
 with col_btn1:
-    # 🧹 徹底一鍵清除（做下一家店）
     if st.button("🧹 清除所有內容（做下一家店）", use_container_width=True):
-        # 移除生成的 Excel 快取
         if "final_excel_bytes" in st.session_state:
             del st.session_state["final_excel_bytes"]
         if "final_file_name" in st.session_state:
             del st.session_state["final_file_name"]
-        
-        # 🔥 關鍵大招：版本計數器 +1，強迫瀏覽器清空所有文字框與上傳的照片快取
         st.session_state["clear_id"] += 1
         st.rerun()
 
@@ -126,7 +121,7 @@ if generate_pressed:
     elif len(products_data) == 0:
         st.error("❌ 請至少填寫一項商品的『商品名稱』！")
     else:
-        with st.spinner("⏳ 正在為您裁剪照片並建立高級 Excel 排版，請稍候..."):
+        with st.spinner("⏳ 正在為您裁剪大量照片並建立高級 Excel 排版，請稍候..."):
             terms_of_use = (
                 "(1)使用本券請提前預約，預約時請告知使用本券及內容。\n"
                 "(2)點餐前，請事先告知服務人員欲使用本券，結帳時出示本券畫面予櫃台掃碼使用。\n"
@@ -150,7 +145,7 @@ if generate_pressed:
             
             provider_info = f"商店名稱：{store_name}\n地址：{store_address}\n電話：{store_phone}"
             issuer_info = "連加網路商業股份有限公司\n地址：臺北市南港區經貿二路121號18樓\n電話：02-3518-7600\n統編：24941093"
-            guarantee_info = "本服務所發行之票券金額，皆自發行日起存入發行人於國泰世華商業銀行開立之信託帳戶，專款專用。所謂專用，係指供發行人履行交付商品或提供服務義務使用，前述信託期間自出售日起算至少一年("
+            guarantee_info = "本服務所發行之票券金額，皆自發行日起存入發行人於國泰世華商業銀行開立之信託帳戶，專款專用。所謂專用，係指供發行人履行交付商品或提供服務義務使用，前述信託期間自出售日起算至少一年。"
 
             wb = openpyxl.Workbook()
             ws = wb.active
@@ -194,22 +189,6 @@ if generate_pressed:
                 cell.alignment = title_alignment
                 cell.border = thin_border
 
-            logo_img_obj = None
-            if logo_file:
-                l_img = Image.open(logo_file).resize((300, 300))
-                l_buf = io.BytesIO()
-                l_img.save(l_buf, format='PNG')
-                l_buf.seek(0)
-                logo_img_obj = l_buf
-
-            banner_img_obj = None
-            if banner_file:
-                b_img = Image.open(banner_file).resize((750, 454))
-                b_buf = io.BytesIO()
-                b_img.save(b_buf, format='PNG')
-                b_buf.seek(0)
-                banner_img_obj = b_buf
-
             current_row = 2
             for p in products_data:
                 ws.row_dimensions[current_row].height = 250
@@ -231,28 +210,23 @@ if generate_pressed:
                 ws.cell(row=current_row, column=16, value=terms_of_use)
                 ws.cell(row=current_row, column=17, value=notices)
                 
-                if logo_img_obj:
-                    logo_img_obj.seek(0)
-                    ws.add_image(OpenpyxlImage(logo_img_obj), f"H{current_row}")
-                if banner_img_obj:
-                    banner_img_obj.seek(0)
-                    ws.add_image(OpenpyxlImage(banner_img_obj), f"I{current_row}")
+                # 💡 核心修正：直接在每一列中動態產生獨立的圖片物件，並直接將 PIL 物件傳給 openpyxl
+                if logo_file:
+                    l_img = Image.open(logo_file).resize((300, 300))
+                    ws.add_image(OpenpyxlImage(l_img), f"H{current_row}")
+                if banner_file:
+                    b_img = Image.open(banner_file).resize((750, 454))
+                    ws.add_image(OpenpyxlImage(b_img), f"I{current_row}")
                 
                 if p["main_img"]:
                     pm_img = Image.open(p["main_img"]).resize((640, 640))
-                    pm_buf = io.BytesIO()
-                    pm_img.save(pm_buf, format='PNG')
-                    pm_buf.seek(0)
-                    ws.add_image(OpenpyxlImage(pm_buf), f"R{current_row}")
+                    ws.add_image(OpenpyxlImage(pm_img), f"R{current_row}")
                     
                 start_col = 19
                 for o_idx, o_file in enumerate(p["other_imgs"]):
                     po_img = Image.open(o_file).resize((640, 640))
-                    po_buf = io.BytesIO()
-                    po_img.save(po_buf, format='PNG')
-                    po_buf.seek(0)
                     col_letter = openpyxl.utils.get_column_letter(start_col + o_idx)
-                    ws.add_image(OpenpyxlImage(po_buf), f"{col_letter}{current_row}")
+                    ws.add_image(OpenpyxlImage(po_img), f"{col_letter}{current_row}")
 
                 for col_idx in range(1, len(headers) + 1):
                     cell = ws.cell(row=current_row, column=col_idx)
@@ -269,12 +243,12 @@ if generate_pressed:
             wb.save(excel_buffer)
             
             st.session_state["final_excel_bytes"] = excel_buffer.getvalue()
-            st.session_state["final_file_name"] = f"{brand_name}_大商戶多品項上架資料.xlsx"
+            st.session_state["final_file_name"] = f"{brand_name}_多品項上架資料.xlsx"
 
-# 💡 如果成功生成好資料，立刻亮出獨立的下載按鈕
+# 💡 生成完畢後，直接顯示獨立下載按鈕
 if "final_excel_bytes" in st.session_state:
     st.write("")
-    st.success("🎉 Excel 包含所有縮放照片已成功在後台建立完畢！請點擊下方綠色按鈕進行下載：")
+    st.success("🎉 恭喜！多品項、多張附加照片已完美全自動裁切成功！請點擊下方綠色按鈕：")
     st.download_button(
         label="💾 點我立刻下載完整版 LINE Pay 上架 Excel",
         data=st.session_state["final_excel_bytes"],
