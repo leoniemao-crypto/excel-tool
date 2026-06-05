@@ -79,7 +79,6 @@ for i in range(1, 6):
         p_desc = st.text_area(f"第 {i} 項商品描述 (上限 32,767 字)", placeholder="請輸入詳細商品介紹...", key=f"p_desc_{i}", height=80)
         p_spec = st.text_area(f"第 {i} 項商品規格", placeholder="例如：容量、尺寸、成份說明...", key=f"p_spec_{i}", height=80)
         
-        # 如果有填名字，就塞入陣列準備處理
         if p_name:
             products_data.append({
                 "index_str": f"商品{i}",
@@ -87,7 +86,7 @@ for i in range(1, 6):
                 "orig_price": p_orig_price,
                 "disc_price": p_disc_price,
                 "main_img": p_main_img,
-                "other_imgs": p_other_imgs[:10], # 強制最多10張
+                "other_imgs": p_other_imgs[:10],
                 "desc": p_desc,
                 "spec": p_spec
             })
@@ -98,21 +97,22 @@ st.write("---")
 col_btn1, col_btn2 = st.columns([1, 4])
 
 with col_btn1:
-    # 🧹 清除重新填寫，準備做下一家店
     if st.button("🧹 清除所有內容（做下一家店）", use_container_width=True):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
 
 with col_btn2:
-    # 🚀 生成完整 Excel
-    if st.button("🚀 生成完整票券 Excel 資料表", type="primary", use_container_width=True):
-        if not brand_name:
-            st.error("❌ 請務必填寫『品牌名稱』才能生成定型化契約條款！")
-        elif len(products_data) == 0:
-            st.error("❌ 請至少填寫一項商品的『商品名稱』！")
-        else:
-            # 建立定型化公版條款
+    generate_pressed = st.button("🚀 生成完整票券 Excel 資料表", type="primary", use_container_width=True)
+
+# 當按下按鈕時，執行後台 Excel 生成，並將結果存入 Session State 確保不會消失
+if generate_pressed:
+    if not brand_name:
+        st.error("❌ 請務必填寫『品牌名稱』才能生成定型化契約條款！")
+    elif len(products_data) == 0:
+        st.error("❌ 請至少填寫一項商品的『商品名稱』！")
+    else:
+        with st.spinner("⏳ 正在為您裁剪照片並建立高級 Excel 排版，請稍候..."):
             terms_of_use = (
                 "(1)使用本券請提前預約，預約時請告知使用本券及內容。\n"
                 "(2)點餐前，請事先告知服務人員欲使用本券，結帳時出示本券畫面予櫃台掃碼使用。\n"
@@ -138,13 +138,11 @@ with col_btn2:
             issuer_info = "連加網路商業股份有限公司\n地址：臺北市南港區經貿二路121號18樓\n電話：02-3518-7600\n統編：24941093"
             guarantee_info = "本服務所發行之票券金額，皆自發行日起存入發行人於國泰世華商業銀行開立之信託帳戶，專款專用。所謂專用，係指供發行人履行交付商品或提供服務義務使用，前述信託期間自出售日起算至少一年。"
 
-            # 建立工作簿
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "LINE Pay 上架明細"
             ws.views.sheetView[0].showGridLines = True
             
-            # 欄位 Headers 設計（共 30 欄）
             headers = [
                 "MID", "品牌名稱", "營業時間", "兌換期", "實際商品提供者資訊", "禮券發行者", "履約保證",
                 "LOGO照片(300x300)", "Banner照片(750x454)", "商品項次", "本券可兌換商品名稱", 
@@ -154,7 +152,6 @@ with col_btn2:
             ]
             ws.append(headers)
             
-            # 美化樣式
             title_font = Font(name="微軟正黑體", size=11, bold=True, color="FFFFFF")
             title_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
             title_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -167,7 +164,6 @@ with col_btn2:
                 top=Side(style="thin", color="D9D9D9"), bottom=Side(style="thin", color="D9D9D9")
             )
             
-            # 設定欄寬
             col_widths = {
                 'A': 15, 'B': 18, 'C': 25, 'D': 30, 'E': 35, 'F': 35, 'G': 40,
                 'H': 40, 'I': 45, 'J': 12, 'K': 25, 'L': 12, 'M': 12, 'N': 40, 'O': 35, 'P': 45, 'Q': 55,
@@ -176,7 +172,6 @@ with col_btn2:
             for col_let, width in col_widths.items():
                 ws.column_dimensions[col_let].width = width
             
-            # 格式化標題列
             ws.row_dimensions[1].height = 35
             for col_idx in range(1, len(headers) + 1):
                 cell = ws.cell(row=1, column=col_idx)
@@ -185,7 +180,6 @@ with col_btn2:
                 cell.alignment = title_alignment
                 cell.border = thin_border
 
-            # 處理全域店照快取 (LOGO & Banner)
             logo_img_obj = None
             if logo_file:
                 l_img = Image.open(logo_file).resize((300, 300))
@@ -202,12 +196,10 @@ with col_btn2:
                 b_buf.seek(0)
                 banner_img_obj = b_buf
 
-            # 循環寫入商品資料列
             current_row = 2
             for p in products_data:
-                ws.row_dimensions[current_row].height = 250 # 固定高規格容納大圖
+                ws.row_dimensions[current_row].height = 250
                 
-                # 寫入文字
                 ws.cell(row=current_row, column=1, value=mid)
                 ws.cell(row=current_row, column=2, value=brand_name)
                 ws.cell(row=current_row, column=3, value=operating_hours)
@@ -225,7 +217,6 @@ with col_btn2:
                 ws.cell(row=current_row, column=16, value=terms_of_use)
                 ws.cell(row=current_row, column=17, value=notices)
                 
-                # 塞入店照圖片
                 if logo_img_obj:
                     logo_img_obj.seek(0)
                     ws.add_image(OpenpyxlImage(logo_img_obj), f"H{current_row}")
@@ -233,7 +224,6 @@ with col_btn2:
                     banner_img_obj.seek(0)
                     ws.add_image(OpenpyxlImage(banner_img_obj), f"I{current_row}")
                 
-                # 處理商品主圖 (640x640)
                 if p["main_img"]:
                     pm_img = Image.open(p["main_img"]).resize((640, 640))
                     pm_buf = io.BytesIO()
@@ -241,4 +231,41 @@ with col_btn2:
                     pm_buf.seek(0)
                     ws.add_image(OpenpyxlImage(pm_buf), f"R{current_row}")
                     
-                # 處理其它
+                start_col = 19
+                for o_idx, o_file in enumerate(p["other_imgs"]):
+                    po_img = Image.open(o_file).resize((640, 640))
+                    po_buf = io.BytesIO()
+                    po_img.save(po_buf, format='PNG')
+                    po_buf.seek(0)
+                    col_letter = openpyxl.utils.get_column_letter(start_col + o_idx)
+                    ws.add_image(OpenpyxlImage(po_buf), f"{col_letter}{current_row}")
+
+                for col_idx in range(1, len(headers) + 1):
+                    cell = ws.cell(row=current_row, column=col_idx)
+                    cell.font = data_font
+                    cell.border = thin_border
+                    if col_idx in [1, 10, 12, 13]:
+                        cell.alignment = center_align
+                    else:
+                        cell.alignment = text_align
+                
+                current_row += 1
+
+            excel_buffer = io.BytesIO()
+            wb.save(excel_buffer)
+            
+            # 將成功生成的結果永久保存到記憶體中
+            st.session_state["final_excel_bytes"] = excel_buffer.getvalue()
+            st.session_state["final_file_name"] = f"{brand_name}_大商戶多品項上架資料.xlsx"
+
+# 💡 核心改良：如果背景已經產生好資料，立刻亮出獨立的綠色下載按鈕，絕對不會卡死！
+if "final_excel_bytes" in st.session_state:
+    st.write("")
+    st.success("🎉 Excel 包含所有縮放照片已成功在後台建立完畢！請點擊下方綠色按鈕進行下載：")
+    st.download_button(
+        label="💾 點我立刻下載完整版 LINE Pay 上架 Excel",
+        data=st.session_state["final_excel_bytes"],
+        file_name=st.session_state["final_file_name"],
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
