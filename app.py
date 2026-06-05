@@ -25,6 +25,13 @@ from datetime import datetime, timedelta
 import io
 
 st.set_page_config(page_title="LINE Pay 票券終極工具", layout="wide")
+
+# 💡 核心改良：引入「元件版本控制 ID」，一鍵切換時能強制刷新瀏覽器畫面的文字與照片
+if "clear_id" not in st.session_state:
+    st.session_state["clear_id"] = 0
+
+cid = st.session_state["clear_id"]
+
 st.title("🚀 LINE Pay 票券大量商品上架標準 Excel 生成器")
 st.write("本工具支援高達 5 項商品同時表單化輸入，並會自動將所有上傳的照片裁切、縮放至 LINE Pay 官方指定規格。")
 
@@ -34,18 +41,18 @@ st.write("---")
 st.subheader("🏢 1. 商店與品牌基本資料（必填）")
 c1, c2, c3 = st.columns(3)
 with c1:
-    mid = st.text_input("MID (商店代號)", placeholder="請輸入 LINE Pay MID", key="mid")
-    brand_name = st.text_input("品牌名稱", placeholder="例如：笨道大飯店", key="brand_name")
+    mid = st.text_input("MID (商店代號)", placeholder="請輸入 LINE Pay MID", key=f"mid_{cid}")
+    brand_name = st.text_input("品牌名稱", placeholder="例如：笨道大飯店", key=f"brand_name_{cid}")
 with c2:
-    store_name = st.text_input("實際提供者 - 商店名稱", placeholder="例如：台北總店", key="store_name")
-    operating_hours = st.text_input("營業時間", placeholder="例如：週一至週日 11:00 - 22:00", key="operating_hours")
+    store_name = st.text_input("實際提供者 - 商店名稱", placeholder="例如：台北總店", key=f"store_name_{cid}")
+    operating_hours = st.text_input("營業時間", placeholder="例如：週一至週日 11:00 - 22:00", key=f"operating_hours_{cid}")
 with c3:
-    store_phone = st.text_input("實際提供者 - 電話", key="store_phone")
-    store_address = st.text_input("實際提供者 - 地址", key="store_address")
+    store_phone = st.text_input("實際提供者 - 電話", key=f"store_phone_{cid}")
+    store_address = st.text_input("實際提供者 - 地址", key=f"store_address_{cid}")
 
 # 2. 全域日期設定
 default_validity = f"{(datetime.now()).strftime('%Y-%m-%d')} 至 {(datetime.now() + timedelta(days=60)).strftime('%Y-%m-%d')} (上架後60天)"
-coupon_validity = st.text_input("兌換期設定（預設為上架後60天，可自行修正）", value=default_validity, key="coupon_validity")
+coupon_validity = st.text_input("兌換期設定（預設為上架後60天，可自行修正）", value=default_validity, key=f"coupon_validity_{cid}")
 
 st.write("---")
 
@@ -53,9 +60,9 @@ st.write("---")
 st.subheader("🖼️ 2. 店家形象照片上傳")
 img_c1, img_c2 = st.columns(2)
 with img_c1:
-    logo_file = st.file_uploader("LOGO 照片（自動調整為 W300 x H300 px）", type=["jpg", "jpeg", "png"], key="logo_file")
+    logo_file = st.file_uploader("LOGO 照片（自動調整為 W300 x H300 px）", type=["jpg", "jpeg", "png"], key=f"logo_file_{cid}")
 with img_c2:
-    banner_file = st.file_uploader("Banner 照片（自動調整為 W750 x H454 px）", type=["jpg", "jpeg", "png"], key="banner_file")
+    banner_file = st.file_uploader("Banner 照片（自動調整為 W750 x H454 px）", type=["jpg", "jpeg", "png"], key=f"banner_file_{cid}")
 
 st.write("---")
 
@@ -69,15 +76,15 @@ for i in range(1, 6):
     with st.expander(f"🔹 點我填寫第 {i} 項商品內容", expanded=(i == 1)):
         p_c1, p_c2 = st.columns(2)
         with p_c1:
-            p_name = st.text_input(f"本券可兌換（第 {i} 項商品名稱）", placeholder="例如：招牌牛肉麵 / 特大杯冷萃咖啡", key=f"p_name_{i}")
-            p_orig_price = st.text_input(f"第 {i} 項商品原價", placeholder="例如：250", key=f"p_orig_price_{i}")
-            p_disc_price = st.text_input(f"第 {i} 項商品優惠價", placeholder="例如：199", key=f"p_disc_price_{i}")
+            p_name = st.text_input(f"本券可兌換（第 {i} 項商品名稱）", placeholder="例如：招牌牛肉麵 / 特大杯冷萃咖啡", key=f"p_name_{i}_{cid}")
+            p_orig_price = st.text_input(f"第 {i} 項商品原價", placeholder="例如：250", key=f"p_orig_price_{i}_{cid}")
+            p_disc_price = st.text_input(f"第 {i} 項商品優惠價", placeholder="例如：199", key=f"p_disc_price_{i}_{cid}")
         with p_c2:
-            p_main_img = st.file_uploader(f"第 {i} 項商品主圖（自動調整為 W640 x H640 px）", type=["jpg", "jpeg", "png"], key=f"p_main_img_{i}")
-            p_other_imgs = st.file_uploader(f"第 {i} 項其它商品照片（最多10張，自動調整為 W640 x H640 px）", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key=f"p_other_imgs_{i}")
+            p_main_img = st.file_uploader(f"第 {i} 項商品主圖（自動調整為 W640 x H640 px）", type=["jpg", "jpeg", "png"], key=f"p_main_img_{i}_{cid}")
+            p_other_imgs = st.file_uploader(f"第 {i} 項其它商品照片（最多10張，自動調整為 W640 x H640 px）", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key=f"p_other_imgs_{i}_{cid}")
         
-        p_desc = st.text_area(f"第 {i} 項商品描述 (上限 32,767 字)", placeholder="請輸入詳細商品介紹...", key=f"p_desc_{i}", height=80)
-        p_spec = st.text_area(f"第 {i} 項商品規格", placeholder="例如：容量、尺寸、成份說明...", key=f"p_spec_{i}", height=80)
+        p_desc = st.text_area(f"第 {i} 項商品描述 (上限 32,767 字)", placeholder="請輸入詳細商品介紹...", key=f"p_desc_{i}_{cid}", height=80)
+        p_spec = st.text_area(f"第 {i} 項商品規格", placeholder="例如：容量、尺寸、成份說明...", key=f"p_spec_{i}_{cid}", height=80)
         
         if p_name:
             products_data.append({
@@ -97,15 +104,22 @@ st.write("---")
 col_btn1, col_btn2 = st.columns([1, 4])
 
 with col_btn1:
+    # 🧹 徹底一鍵清除（做下一家店）
     if st.button("🧹 清除所有內容（做下一家店）", use_container_width=True):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
+        # 移除生成的 Excel 快取
+        if "final_excel_bytes" in st.session_state:
+            del st.session_state["final_excel_bytes"]
+        if "final_file_name" in st.session_state:
+            del st.session_state["final_file_name"]
+        
+        # 🔥 關鍵大招：版本計數器 +1，強迫瀏覽器清空所有文字框與上傳的照片快取
+        st.session_state["clear_id"] += 1
         st.rerun()
 
 with col_btn2:
     generate_pressed = st.button("🚀 生成完整票券 Excel 資料表", type="primary", use_container_width=True)
 
-# 當按下按鈕時，執行後台 Excel 生成，並將結果存入 Session State 確保不會消失
+# 當按下按鈕時，執行後台 Excel 生成
 if generate_pressed:
     if not brand_name:
         st.error("❌ 請務必填寫『品牌名稱』才能生成定型化契約條款！")
@@ -136,7 +150,7 @@ if generate_pressed:
             
             provider_info = f"商店名稱：{store_name}\n地址：{store_address}\n電話：{store_phone}"
             issuer_info = "連加網路商業股份有限公司\n地址：臺北市南港區經貿二路121號18樓\n電話：02-3518-7600\n統編：24941093"
-            guarantee_info = "本服務所發行之票券金額，皆自發行日起存入發行人於國泰世華商業銀行開立之信託帳戶，專款專用。所謂專用，係指供發行人履行交付商品或提供服務義務使用，前述信託期間自出售日起算至少一年。"
+            guarantee_info = "本服務所發行之票券金額，皆自發行日起存入發行人於國泰世華商業銀行開立之信託帳戶，專款專用。所謂專用，係指供發行人履行交付商品或提供服務義務使用，前述信託期間自出售日起算至少一年("
 
             wb = openpyxl.Workbook()
             ws = wb.active
@@ -254,11 +268,10 @@ if generate_pressed:
             excel_buffer = io.BytesIO()
             wb.save(excel_buffer)
             
-            # 將成功生成的結果永久保存到記憶體中
             st.session_state["final_excel_bytes"] = excel_buffer.getvalue()
             st.session_state["final_file_name"] = f"{brand_name}_大商戶多品項上架資料.xlsx"
 
-# 💡 核心改良：如果背景已經產生好資料，立刻亮出獨立的綠色下載按鈕，絕對不會卡死！
+# 💡 如果成功生成好資料，立刻亮出獨立的下載按鈕
 if "final_excel_bytes" in st.session_state:
     st.write("")
     st.success("🎉 Excel 包含所有縮放照片已成功在後台建立完畢！請點擊下方綠色按鈕進行下載：")
