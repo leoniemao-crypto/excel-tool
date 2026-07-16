@@ -79,7 +79,11 @@ with tab1:
                 t_now = datetime.now()
                 display_name = p_name if p_name else f"（第{i}項商品名稱/規格）"
 
-                # 💡 核心優化 1：若選「常態商品」，只能對應格式二，並自動代入自訂天數 (最大 150 天)
+                # 建立基準日期物件，供下方販售與折扣時間連動
+                v_start_obj = t_now
+                v_end_obj = t_now + timedelta(days=50)
+
+                # 💡 常態商品邏輯
                 if validity_type == "常態商品 (自訂天數，最大150天)":
                     p_valid_days = st.number_input(f"常態商品兌換天數 ({i})", min_value=1, max_value=150, value=50, key=f"p_valid_days_{i}_{cid}")
                     start_date_calc = t_now + timedelta(days=7)
@@ -88,11 +92,15 @@ with tab1:
                     end_d = end_date_calc.strftime("%Y/%m/%d")
                     st.info(f"常態商品已自動計算（製作日+7天為開始日，共 {p_valid_days} 天）：{start_d} 至 {end_d}")
                     
+                    # 賦值給基準物件
+                    v_start_obj = start_date_calc
+                    v_end_obj = end_date_calc
+
                     final_validity_text = f"*本券可兌換{display_name}，兌換期間為購買當日起至{p_valid_days}日止。"
                     st.write("💡 常態商品固定套用格式二文案：")
                     st.code(final_validity_text, language="text")
 
-                # 💡 核心優化 2 & 3 & 4：若選「季節商品」，更換欄位名稱，僅限格式一與格式三
+                # 💡 季節商品邏輯
                 else:
                     vd1, vd2 = st.columns(2)
                     with vd1:
@@ -104,6 +112,10 @@ with tab1:
                     end_d = end_date_val.strftime("%Y/%m/%d")
                     days_diff = (end_date_val - start_date_val).days
                     
+                    # 賦值給基準物件
+                    v_start_obj = start_date_val
+                    v_end_obj = end_date_val
+
                     if days_diff > 150:
                         st.error(f"⚠️ 警告：目前相差 {days_diff} 天已超過 150 天，注意！！兌換日不可超過150天。")
                     elif days_diff < 50:
@@ -126,38 +138,32 @@ with tab1:
                         final_validity_text = f"*本券可兌換{display_name}，兌換期間為{start_d}至{end_d}止。"
                     st.code(final_validity_text, language="text")
 
-                # 💡 優化 1：商品販售時間需要跟兌換類型一致
+                # 💡 優化 1：商品販售時間跟兌換類型一致，且季節商品預設與兌換日期完全相同
                 st.write("**🛒 商品販售時間**")
                 if validity_type == "常態商品 (自訂天數，最大150天)":
                     st.info("💡 兌換類型為【常態商品】，商品販售時間已限定並鎖定為：常態商品 (填無)")
                     final_sell_time = "無"
                 else:
-                    st.info("💡 兌換類型為【季節商品】，商品販售時間已限定並鎖定為：季節性商品 (填日期區間)")
+                    st.info("💡 兌換類型為【季節商品】，商品販售時間已預設與兌換起始/截止日一致（可自行調整）")
                     s1, s2 = st.columns(2)
                     with s1:
-                        s_s = st.date_input(f"販售開始日 ({i})", value=t_now, key=f"s_s_{i}_{cid}")
+                        s_s = st.date_input(f"販售開始日 ({i})", value=v_start_obj, key=f"s_s_{i}_{cid}") # 💡 已優化：預設連動
                     with s2:
-                        s_e = st.date_input(f"販售結束日 ({i})", value=t_now + timedelta(days=14), key=f"s_e_{i}_{cid}")
+                        s_e = st.date_input(f"販售結束日 ({i})", value=v_end_obj, key=f"s_e_{i}_{cid}") # 💡 已優化：預設連動
                     final_sell_time = f"{s_s.strftime('%Y/%m/%d')} 至 {s_e.strftime('%Y/%m/%d')}"
 
-                # 💡 優化 2：選擇限定折扣，折扣開始日與結束日預設跟常態商品已自動計算日一樣，但保有調整設定
+                # 💡 優化 2：選擇限定折扣，折扣開始與結束日，100% 自動預設跟兌換日期一樣
                 st.write("**🏷️ 商品折扣時間**")
                 discount_type = st.radio(f"折扣屬性 ({i})", ["原價販售 (填無)", "限定折扣 (填日期區間)"], key=f"discount_type_{i}_{cid}")
                 
                 if discount_type == "原價販售 (填無)":
                     final_discount_time = "無"
                 else:
-                    # 折扣日期的預設值：預設跟常態商品一樣（製作日+7天 至 製作日+7天+xx天）
-                    # 即使選季節商品，我們也一樣套用 default 7天 與 相對天數（季節預設套用50天）
-                    calc_days = p_valid_days if validity_type == "常態商品 (自訂天數，最大150天)" else 50
-                    default_discount_start = t_now + timedelta(days=7)
-                    default_discount_end = default_discount_start + timedelta(days=calc_days)
-                    
                     d1, d2 = st.columns(2)
                     with d1:
-                        d_s = st.date_input(f"折扣開始日 ({i})", value=default_discount_start, key=f"d_s_{i}_{cid}")
+                        d_s = st.date_input(f"折扣開始日 ({i})", value=v_start_obj, key=f"d_s_{i}_{cid}") # 💡 已優化：預設連動
                     with d2:
-                        d_e = st.date_input(f"折扣結束日 ({i})", value=default_discount_end, key=f"d_e_{i}_{cid}")
+                        d_e = st.date_input(f"折扣結束日 ({i})", value=v_end_obj, key=f"d_e_{i}_{cid}") # 💡 已優化：預設連動
                     final_discount_time = f"{d_s.strftime('%Y/%m/%d')} 至 {d_e.strftime('%Y/%m/%d')}"
 
             st.write("---")
@@ -175,7 +181,7 @@ with tab1:
             st.error("❌ 請至少填寫一項商品的『商品名稱/規格』才能進行 Excel 匯出！")
         else:
             b_display = brand_name if brand_name else "（請填寫 brand_name）"
-            notices = f"1. 使用本券請至 {b_display} 直接出示本券掃碼兌換（請將螢幕亮度調到最大）。\n2. 本券恕不得更換現金及轉售。\n3. 使用本券時須符合本券載明之品項與規格。因購買時LINE Pay已開立發票給購買者，兌換時不另開立發票。商品兌換後，恕無法提供退貨及換貨。\n4. 商店僅提供兌換本券商品的服務，若對兌換之商品有任何問題請洽門市人員，其他本服務相關問題請聯繫連加網路商業股份有限公司（下稱LINE Pay）客服。\n5. 本券不記名，僅限兌換一次，不得重複使用，任何人持有皆可兌換，請自行妥善保管。\n6. 本券之兌換與銷售，恕不與商店所有折扣、優惠、各行銷活動合併使用。\n7. 有關本券之使用、兌換、取消及補發之條款及條件，及本服務之完整內容，請詳見「服務條款」。\n8. 本券如未於期限內兌換，費用將全額退款給原購買者。"
+            notices = f"1. 使用本券請至 {b_display} 直接出示本券掃碼兌換（請將螢幕亮度調到最大）。\n2. 本券恕不得更換現金及轉售。\n3. 使用本券時須符合本券載明之品項與規格. 因購買時LINE Pay已開立發票給購買者，兌換時不另開立發票。商品兌換後，恕無法提供退貨及換貨。\n4. 商店僅提供兌換本券商品的服務，若對兌換之商品有任何問題請洽門市人員，其他本服務相關問題請聯繫連加網路商業股份有限公司（下稱LINE Pay）客服。\n5. 本券不記名，僅限兌換一次，不得重複使用，任何人持有皆可兌換，請自行妥善保管。\n6. 本券之兌換與銷售，恕不與商店所有折扣、優惠、各行銷活動合併使用。\n7. 有關本券之使用、兌換、取消及補發之條款及條件，及本服務之完整內容，請詳見「服務條款」。\n8. 本券如未於期限內兌換，費用將全額退款給原購買者。"
             issuer_info = "連加網路商業股份有限公司\n地址：臺北市南港區經貿二路121號18樓\n電話：02-3518-7600\n統編：24941093"
             guarantee_info = "本服務所發行之票券金額，皆自發行日起存入發行人於國泰世華商業銀行開立之信託帳戶，專款專用。所謂專用，係指供發行人履行交付商品或提供服務義務使用，前述信託期間自出售日起算至少一年。"
             provider_info = f"商店名稱：{b_display}\n地址：{store_address}\n電話：{store_phone1} / {store_phone2}\n統編：{store_tax_id}"
@@ -239,7 +245,7 @@ with tab1:
 # ==========================================
 with tab2:
     st.title("🖼️ LINE Pay 官方圖片規格一鍵裁切下載工具")
-    st.write("在這裡上傳的任何圖片，系統都會自動強制調整為 LINE Pay 官方要求的指定像素與比例。")
+    st.write("在這裡上傳的 any 圖片，系統都會自動強制調整為 LINE Pay 官方要求的指定像素與比例。")
     
     st.write("---")
     
