@@ -16,7 +16,7 @@ for package, import_name in [("openpyxl", "openpyxl"), ("Pillow", "PIL")]:
         importlib.invalidate_caches()
 
 # --- LINE Pay 票券雙效終極大平台主程式 ---
-import streamlit st
+import streamlit as st
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from PIL import Image
