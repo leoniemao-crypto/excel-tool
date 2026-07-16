@@ -92,11 +92,10 @@ with tab1:
                     end_d = end_date_calc.strftime("%Y/%m/%d")
                     st.info(f"常態商品已自動計算（製作日+7天為開始日，共 {p_valid_days} 天）：{start_d} 至 {end_d}")
                     
-                    # 智慧連動基準日期刷新 (讓下方的販售與折扣時間抓取)
+                    # 智慧連動基準日期刷新 (讓下方的販售與折扣時間自動抓取)
                     v_start_obj = start_date_calc
                     v_end_obj = end_date_calc
 
-                    # 💡 優化 3：修正格式二文案，將原先天數改為自動計算出來的截止日日期（end_d）
                     final_validity_text = f"*本券可兌換{display_name}，兌換期間為購買當日起至{end_d}止。"
                     st.write("💡 常態商品固定套用格式二文案：")
                     st.code(final_validity_text, language="text")
@@ -113,7 +112,7 @@ with tab1:
                     end_d = end_date_val.strftime("%Y/%m/%d")
                     days_diff = (end_date_val - start_date_val).days
                     
-                    # 智慧連動基準日期刷新 (讓下方的販售與折扣時間抓取)
+                    # 智慧連動基準日期刷新 (讓下方的販售與折扣時間自動抓取)
                     v_start_obj = start_date_val
                     v_end_obj = end_date_val
 
@@ -139,9 +138,11 @@ with tab1:
                         final_validity_text = f"*本券可兌換{display_name}，兌換期間為{start_d}至{end_d}止。"
                     st.code(final_validity_text, language="text")
 
-                # 💡 優化 1 & 3：商品販售時間日期「100% 全自動預設對齊」兌換起始日與截止日，且保留手動點擊日曆調整的空間
+                # 💡 優化 1：商品販售時間「屬性自動切換預設」，且日期「全自動連動對齊」
                 st.write("**🛒 商品販售時間設定**")
-                sell_type = st.radio(f"販售屬性 ({i})", ["常態商品 (填無)", "季節性商品 (填日期區間)"], key=f"sell_type_{i}_{cid}")
+                sell_default_index = 0 if validity_type == "常態商品 (自訂天數，最大150天)" else 1 # 常態預設0，季節自動預設1
+                sell_type = st.radio(f"販售屬性 ({i})", ["常態商品 (填無)", "季節性商品 (填日期區間)"], index=sell_default_index, key=f"sell_type_{i}_{cid}")
+                
                 if sell_type == "常態商品 (填無)":
                     final_sell_time = "無"
                 else:
@@ -152,7 +153,7 @@ with tab1:
                         s_e = st.date_input(f"販售結束日 ({i})", value=v_end_obj, key=f"s_e_{i}_{cid}")
                     final_sell_time = f"{s_s.strftime('%Y/%m/%d')} 至 {s_e.strftime('%Y/%m/%d')}"
 
-                # 💡 優化 2 & 4：限定折扣時間日期「100% 全自動預設對齊」兌換起始日與截止日，且保留手動點擊日曆調整的空間
+                # 💡 優化 2：限定折扣時間日期「全自動智慧對齊」，且保留調整彈性
                 st.write("**🏷️ 商品折扣時間設定**")
                 discount_type = st.radio(f"折扣屬性 ({i})", ["原價販售 (填無)", "限定折扣 (填日期區間)"], key=f"discount_type_{i}_{cid}")
                 if discount_type == "原價販售 (填無)":
