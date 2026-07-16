@@ -75,37 +75,58 @@ with tab1:
 
             with p_c2:
                 st.write("**📅 商品券兌換時間設定**")
-                validity_type = st.radio(f"兌換類型 ({i})", ["常態商品 (系統自訂50天)", "季節商品 (自訂截止日)"], key=f"v_type_{i}_{cid}")
+                validity_type = st.radio(f"兌換類型 ({i})", ["常態商品 (自訂天數，最大150天)", "季節商品 (自訂截止日)"], key=f"v_type_{i}_{cid}")
                 t_now = datetime.now()
-                if validity_type == "常態商品 (系統自訂50天)":
+                display_name = p_name if p_name else f"（第{i}項商品名稱/規格）"
+
+                # 💡 核心優化：若選常態商品，只能對應格式二，並代入自訂天數
+                if validity_type == "常態商品 (自訂天數，最大150天)":
+                    p_valid_days = st.number_input(f"常態商品兌換天數 ({i})", min_value=1, max_value=150, value=50, key=f"p_valid_days_{i}_{cid}")
                     start_date_calc = t_now + timedelta(days=7)
-                    end_date_calc = start_date_calc + timedelta(days=50)
+                    end_date_calc = start_date_calc + timedelta(days=p_valid_days)
                     start_d = start_date_calc.strftime("%Y/%m/%d")
                     end_d = end_date_calc.strftime("%Y/%m/%d")
-                    st.info(f"常態商品已自動計算（製作日+7天為開始日，共50天）：{start_d} 至 {end_d}")
+                    st.info(f"常態商品已自動計算（製作日+7天為開始日，共 {p_valid_days} 天）：{start_d} 至 {end_d}")
+                    
+                    # 強制對應格式二
+                    final_validity_text = f"•本券可兌換{display_name}，兌換期間為購買當日起至{p_valid_days}日止。"
+                    st.write("💡 常態商品固定套用格式二文案：")
+                    st.code(final_validity_text, language="text")
+
+                # 💡 核心優化：若選季節商品，可選格式一或三，且天數最大值提示調整
                 else:
                     vd1, vd2 = st.columns(2)
                     with vd1:
-                        start_date_val = st.date_input(f"上架販售初日 ({i})", value=t_now, key=f"s_date_{i}_{cid}")
+                        start_date_val = st.date_input(f"兌換起始日期 ({i})", value=t_now, key=f"s_date_{i}_{cid}") # 已修正欄位名稱
                     with vd2:
-                        end_date_val = st.date_input(f"兌換最後截止日 ({i})", value=t_now + timedelta(days=45), key=f"e_date_{i}_{cid}")
+                        end_date_val = st.date_input(f"兌換截止日期 ({i})", value=t_now + timedelta(days=45), key=f"e_date_{i}_{cid}") # 已修正欄位名稱
+                    
                     start_d = start_date_val.strftime("%Y/%m/%d")
                     end_d = end_date_val.strftime("%Y/%m/%d")
                     days_diff = (end_date_val - start_date_val).days
-                    if days_diff > 50:
-                        st.warning(f"⚠️ 提示：目前相差 {days_diff} 天已超過 50 天（系統仍可正常導出）。")
+                    
+                    if days_diff > 150:
+                        st.error(f"⚠️ 警告：目前相差 {days_diff} 天已超過 150 天，注意！！兌換日不可超過150天。")
+                    elif days_diff < 50:
+                        st.warning(f"⚠️ 提示：目前相差 {days_diff} 天，低於常規 50 天（系統仍可正常導出）。")
                     else:
-                        st.success(f"✅ 符合官方常規（目前相差 {days_diff} 天）")
-                
-                format_type = st.selectbox(f"選擇要帶入的官方兌換時間文案格式 ({i})", ["格式一：• 本券兌換期間為（YYYY/MM/DD 至 YYYY/MM/DD）", "格式二：• 本券可兌換（商品名稱/規格），兌換期間為購買當日起至50日止。", "格式三：• 本券可兌換（商品名稱/規格），兌換期間為（YYYY/MM/DD 至 YYYY/MM/DD）"], key=f"format_type_{i}_{cid}")
-                display_name = p_name if p_name else f"（第{i}項商品名稱/規格）"
-                if "格式一" in format_type:
-                    final_validity_text = f"• 本券兌換期間為（{start_d} 至 {end_d}）"
-                elif "格式二" in format_type:
-                    final_validity_text = f"• 本券可兌換（{display_name}），兌換期間為購買當日起至（兌換天數50日）日止。"
-                else:
-                    final_validity_text = f"• 本券可兌換（{display_name}），兌換期間為（{start_d} 至 {end_d}）"
-                st.code(final_validity_text, language="text")
+                        st.success(f"✅ 目前相差 {days_diff} 天，符合系統兌換 50~150天，注意！！兌換日不可超過150天。") # 已修正日期提示
+                    
+                    # 季節商品格式選擇 (格式一 or 格式三 擇一)
+                    format_choice = st.selectbox(
+                        f"選擇要帶入的官方兌換時間文案格式 ({i})",
+                        [
+                            "格式一：本券兌換期間為YYYY/MM/DD至YYYY/MM/DD止。",
+                            "格式三：本券可兌換商品名稱/規格，兌換期間為YYYY/MM/DD至YYYY/MM/DD止。"
+                        ],
+                        key=f"format_choice_{i}_{cid}"
+                    )
+                    
+                    if "格式一" in format_choice:
+                        final_validity_text = f"本券兌換期間為{start_d}至{end_d}止。"
+                    else:
+                        final_validity_text = f"本券可兌換{display_name}，兌換期間為{start_d}至{end_d}止。"
+                    st.code(final_validity_text, language="text")
 
                 st.write("**🛒 商品販售時間**")
                 sell_type = st.radio(f"販售屬性 ({i})", ["常態商品 (填無)", "季節性商品 (填日期區間)"], key=f"sell_type_{i}_{cid}")
@@ -147,7 +168,7 @@ with tab1:
         if len(products_data) == 0:
             st.error("❌ 請至少填寫一項商品的『商品名稱/規格』才能進行 Excel 匯出！")
         else:
-            b_display = brand_name if brand_name else "（請填寫品牌名稱）"
+            b_display = brand_name if brand_name else "（請填寫 brand_name）"
             notices = f"1. 使用本券請至 {b_display} 直接出示本券掃碼兌換（請將螢幕亮度調到最大）。\n2. 本券恕不得更換現金及轉售。\n3. 使用本券時須符合本券載明之品項與規格。因購買時LINE Pay已開立發票給購買者，兌換時不另開立發票。商品兌換後，恕無法提供退貨及換貨。\n4. 商店僅提供兌換本券商品的服務，若對兌換之商品有任何問題請洽門市人員，其他本服務相關問題請聯繫連加網路商業股份有限公司（下稱LINE Pay）客服。\n5. 本券不記名，僅限兌換一次，不得重複使用，任何人持有皆可兌換，請自行妥善保管。\n6. 本券之兌換與銷售，恕不與商店所有折扣、優惠、各行銷活動合併使用。\n7. 有關本券之使用、兌換、取消及補發之條款及條件，及本服務之完整內容，請詳見「服務條款」。\n8. 本券如未於期限內兌換，費用將全額退款給原購買者。"
             issuer_info = "連加網路商業股份有限公司\n地址：臺北市南港區經貿二路121號18樓\n電話：02-3518-7600\n統編：24941093"
             guarantee_info = "本服務所發行之票券金額，皆自發行日起存入發行人於國泰世華商業銀行開立之信託帳戶，專款專用。所謂專用，係指供發行人履行交付商品或提供服務義務使用，前述信託期間自出售日起算至少一年。"
