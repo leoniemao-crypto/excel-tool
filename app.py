@@ -79,7 +79,7 @@ with tab1:
                 t_now = datetime.now()
                 display_name = p_name if p_name else f"（第{i}項商品名稱/規格）"
 
-                # 💡 核心優化：若選常態商品，只能對應格式二，並代入自訂天數
+                # 💡 核心優化 1 & 4：若選「常態商品」，強制鎖定格式二，自動套用星號 *
                 if validity_type == "常態商品 (自訂天數，最大150天)":
                     p_valid_days = st.number_input(f"常態商品兌換天數 ({i})", min_value=1, max_value=150, value=50, key=f"p_valid_days_{i}_{cid}")
                     start_date_calc = t_now + timedelta(days=7)
@@ -88,18 +88,17 @@ with tab1:
                     end_d = end_date_calc.strftime("%Y/%m/%d")
                     st.info(f"常態商品已自動計算（製作日+7天為開始日，共 {p_valid_days} 天）：{start_d} 至 {end_d}")
                     
-                    # 強制對應格式二
-                    final_validity_text = f"•本券可兌換{display_name}，兌換期間為購買當日起至{p_valid_days}日止。"
+                    final_validity_text = f"*本券可兌換{display_name}，兌換期間為購買當日起至{p_valid_days}日止。"
                     st.write("💡 常態商品固定套用格式二文案：")
                     st.code(final_validity_text, language="text")
 
-                # 💡 核心優化：若選季節商品，可選格式一或三，且天數最大值提示調整
+                # 💡 核心優化 2 & 3 & 4：若選「季節商品」，更換欄位名稱，僅限格式一與格式三
                 else:
                     vd1, vd2 = st.columns(2)
                     with vd1:
-                        start_date_val = st.date_input(f"兌換起始日期 ({i})", value=t_now, key=f"s_date_{i}_{cid}") # 已修正欄位名稱
+                        start_date_val = st.date_input(f"兌換起始日期 ({i})", value=t_now, key=f"s_date_{i}_{cid}")
                     with vd2:
-                        end_date_val = st.date_input(f"兌換截止日期 ({i})", value=t_now + timedelta(days=45), key=f"e_date_{i}_{cid}") # 已修正欄位名稱
+                        end_date_val = st.date_input(f"兌換截止日期 ({i})", value=t_now + timedelta(days=45), key=f"e_date_{i}_{cid}")
                     
                     start_d = start_date_val.strftime("%Y/%m/%d")
                     end_d = end_date_val.strftime("%Y/%m/%d")
@@ -110,22 +109,21 @@ with tab1:
                     elif days_diff < 50:
                         st.warning(f"⚠️ 提示：目前相差 {days_diff} 天，低於常規 50 天（系統仍可正常導出）。")
                     else:
-                        st.success(f"✅ 目前相差 {days_diff} 天，符合系統兌換 50~150天，注意！！兌換日不可超過150天。") # 已修正日期提示
+                        st.success(f"✅ 目前相差 {days_diff} 天，符合系統兌換 50~150天，注意！！兌換日不可超過150天。")
                     
-                    # 季節商品格式選擇 (格式一 or 格式三 擇一)
                     format_choice = st.selectbox(
                         f"選擇要帶入的官方兌換時間文案格式 ({i})",
                         [
-                            "格式一：本券兌換期間為YYYY/MM/DD至YYYY/MM/DD止。",
-                            "格式三：本券可兌換商品名稱/規格，兌換期間為YYYY/MM/DD至YYYY/MM/DD止。"
+                            "格式一：*本券兌換期間為YYYY/MM/DD至YYYY/MM/DD止。",
+                            "格式三：*本券可兌換商品名稱/規格，兌換期間為YYYY/MM/DD至YYYY/MM/DD止。"
                         ],
                         key=f"format_choice_{i}_{cid}"
                     )
                     
                     if "格式一" in format_choice:
-                        final_validity_text = f"本券兌換期間為{start_d}至{end_d}止。"
+                        final_validity_text = f"*本券兌換期間為{start_d}至{end_d}止。"
                     else:
-                        final_validity_text = f"本券可兌換{display_name}，兌換期間為{start_d}至{end_d}止。"
+                        final_validity_text = f"*本券可兌換{display_name}，兌換期間為{start_d}至{end_d}止。"
                     st.code(final_validity_text, language="text")
 
                 st.write("**🛒 商品販售時間**")
