@@ -16,7 +16,7 @@ for package, import_name in [("openpyxl", "openpyxl"), ("Pillow", "PIL")]:
         importlib.invalidate_caches()
 
 # --- LINE Pay 票券雙效終極大平台主程式 ---
-import streamlit as st
+import streamlit st
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from PIL import Image
@@ -79,7 +79,10 @@ with tab1:
                 t_now = datetime.now().date()
                 display_name = p_name if p_name else f"（第{i}項商品名稱/規格）"
 
-                # 建立基準日期物件，用來實現 100% 全域智慧型預設連動
+                # 用來強制更新網頁元件狀態的動態識別標籤
+                v_key_part = "normal" if "常態" in validity_type else "seasonal"
+
+                # 建立基準日期物件
                 v_start_obj = t_now
                 v_end_obj = t_now + timedelta(days=50)
 
@@ -92,7 +95,6 @@ with tab1:
                     end_d = end_date_calc.strftime("%Y/%m/%d")
                     st.info(f"常態商品已自動計算（製作日+7天為開始日，共 {p_valid_days} 天）：{start_d} 至 {end_d}")
                     
-                    # 智慧連動基準日期刷新 (讓下方的販售與折扣時間自動抓取)
                     v_start_obj = start_date_calc
                     v_end_obj = end_date_calc
 
@@ -112,7 +114,6 @@ with tab1:
                     end_d = end_date_val.strftime("%Y/%m/%d")
                     days_diff = (end_date_val - start_date_val).days
                     
-                    # 智慧連動基準日期刷新 (讓下方的販售與折扣時間自動抓取)
                     v_start_obj = start_date_val
                     v_end_obj = end_date_val
 
@@ -138,32 +139,32 @@ with tab1:
                         final_validity_text = f"*本券可兌換{display_name}，兌換期間為{start_d}至{end_d}止。"
                     st.code(final_validity_text, language="text")
 
-                # 💡 優化 1：商品販售時間「屬性自動切換預設」，且日期「全自動連動對齊」
+                # 💡 優化：透過動態 key 的切換，選「季節商品」時，屬性會 100% 強制秒切為季節，且日期完美同步！
                 st.write("**🛒 商品販售時間設定**")
-                sell_default_index = 0 if validity_type == "常態商品 (自訂天數，最大150天)" else 1 # 常態預設0，季節自動預設1
-                sell_type = st.radio(f"販售屬性 ({i})", ["常態商品 (填無)", "季節性商品 (填日期區間)"], index=sell_default_index, key=f"sell_type_{i}_{cid}")
+                sell_default_index = 0 if validity_type == "常態商品 (自訂天數，最大150天)" else 1
+                sell_type = st.radio(f"販售屬性 ({i})", ["常態商品 (填無)", "季節性商品 (填日期區間)"], index=sell_default_index, key=f"sell_type_{i}_{cid}_{v_key_part}")
                 
                 if sell_type == "常態商品 (填無)":
                     final_sell_time = "無"
                 else:
                     s1, s2 = st.columns(2)
                     with s1:
-                        s_s = st.date_input(f"販售開始日 ({i})", value=v_start_obj, key=f"s_s_{i}_{cid}")
+                        s_s = st.date_input(f"販售開始日 ({i})", value=v_start_obj, key=f"s_s_{i}_{cid}_{v_key_part}")
                     with s2:
-                        s_e = st.date_input(f"販售結束日 ({i})", value=v_end_obj, key=f"s_e_{i}_{cid}")
+                        s_e = st.date_input(f"販售結束日 ({i})", value=v_end_obj, key=f"s_e_{i}_{cid}_{v_key_part}")
                     final_sell_time = f"{s_s.strftime('%Y/%m/%d')} 至 {s_e.strftime('%Y/%m/%d')}"
 
-                # 💡 優化 2：限定折扣時間日期「全自動智慧對齊」，且保留調整彈性
+                # 💡 優化：折扣時間同步採用動態 key，換產性屬性時，折扣日期也 100% 自動對齊上面！
                 st.write("**🏷️ 商品折扣時間設定**")
-                discount_type = st.radio(f"折扣屬性 ({i})", ["原價販售 (填無)", "限定折扣 (填日期區間)"], key=f"discount_type_{i}_{cid}")
+                discount_type = st.radio(f"折扣屬性 ({i})", ["原價販售 (填無)", "限定折扣 (填日期區間)"], key=f"discount_type_{i}_{cid}_{v_key_part}")
                 if discount_type == "原價販售 (填無)":
                     final_discount_time = "無"
                 else:
                     d1, d2 = st.columns(2)
                     with d1:
-                        d_s = st.date_input(f"折扣開始日 ({i})", value=v_start_obj, key=f"d_s_{i}_{cid}")
+                        d_s = st.date_input(f"折扣開始日 ({i})", value=v_start_obj, key=f"d_s_{i}_{cid}_{v_key_part}")
                     with d2:
-                        d_e = st.date_input(f"折扣結束日 ({i})", value=v_end_obj, key=f"d_e_{i}_{cid}")
+                        d_e = st.date_input(f"折扣結束日 ({i})", value=v_end_obj, key=f"d_e_{i}_{cid}_{v_key_part}")
                     final_discount_time = f"{d_s.strftime('%Y/%m/%d')} 至 {d_e.strftime('%Y/%m/%d')}"
 
             st.write("---")
