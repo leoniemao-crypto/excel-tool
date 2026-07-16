@@ -16,7 +16,7 @@ for package, import_name in [("openpyxl", "openpyxl"), ("Pillow", "PIL")]:
         importlib.invalidate_caches()
 
 # --- LINE Pay 票券雙效終極大平台主程式 ---
-import streamlit as st # 💡 已100%完美修復為 as st
+import streamlit as st
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from PIL import Image
@@ -90,7 +90,7 @@ with tab1:
                     end_date_calc = start_date_calc + timedelta(days=p_valid_days)
                     start_d = start_date_calc.strftime("%Y/%m/%d")
                     end_d = end_date_calc.strftime("%Y/%m/%d")
-                    st.info(f"常態商品已自動計算（製作日+7天為開始日，共 {p_valid_days} 天）：{start_d} 至 {end_d}")
+                    st.info(f"常態商品已自動計算：{start_d} 至 {end_d}")
                     
                     v_start_obj = start_date_calc
                     v_end_obj = end_date_calc
@@ -119,16 +119,9 @@ with tab1:
                     elif days_diff < 50:
                         st.warning(f"⚠️ 提示：目前相差 {days_diff} 天，低於常規 50 天（系統仍可正常導出）。")
                     else:
-                        st.success(f"✅ 目前相差 {days_diff} 天，符合系統兌換 50~150天，注意！！兌換日不可超過150天。")
+                        st.success(f"✅ 目前相差 {days_diff} 天，符合系統兌換 50~150天。")
                     
-                    format_choice = st.selectbox(
-                        f"選擇要帶入的官方兌換時間文案格式 ({i})",
-                        [
-                            "格式一：*本券兌換期間為YYYY/MM/DD至YYYY/MM/DD止。",
-                            "格式三：*本券可兌換商品名稱/規格，兌換期間為YYYY/MM/DD至YYYY/MM/DD止。"
-                        ],
-                        key=f"format_choice_{i}_{cid}"
-                    )
+                    format_choice = st.selectbox(f"選擇要帶入的官方兌換時間文案格式 ({i})", ["格式一：*本券兌換期間為YYYY/MM/DD至YYYY/MM/DD止。", "格式三：*本券可兌換商品名稱/規格，兌換期間為YYYY/MM/DD至YYYY/MM/DD止。"], key=f"format_choice_{i}_{cid}")
                     
                     if "格式一" in format_choice:
                         final_validity_text = f"*本券兌換期間為{start_d}至{end_d}止。"
@@ -136,7 +129,7 @@ with tab1:
                         final_validity_text = f"*本券可兌換{display_name}，兌換期間為{start_d}至{end_d}止。"
                     st.code(final_validity_text, language="text")
 
-                # 💡 核心優化：將 start_d 與 end_d 綁定進日期元件的 key，只要上方日期一改，下方立刻重整對齊，手動微調也完美支援！
+                # 💡 3. 商品販售時間設定
                 st.write("**🛒 商品販售時間設定**")
                 sell_default_index = 0 if validity_type == "常態商品 (自訂天數，最大150天)" else 1
                 sell_type = st.radio(f"販售屬性 ({i})", ["常態商品 (填無)", "季節性商品 (填日期區間)"], index=sell_default_index, key=f"sell_type_{i}_{cid}_{v_key_part}")
@@ -151,9 +144,27 @@ with tab1:
                         s_e = st.date_input(f"販售結束日 ({i})", value=v_end_obj, key=f"s_e_{i}_{cid}_{start_d}_{end_d}")
                     final_sell_time = f"{s_s.strftime('%Y/%m/%d')} 至 {s_e.strftime('%Y/%m/%d')}"
 
-                # 💡 折扣時間同步套用動態日期鎖匙
+                # 💡 4. 商品折扣時間設定 (智慧雙價格判斷優化)
                 st.write("**🏷️ 商品折扣時間設定**")
-                discount_type = st.radio(f"折扣屬性 ({i})", ["原價販售 (填無)", "限定折扣 (填日期區間)"], key=f"discount_type_{i}_{cid}_{v_key_part}")
+                
+                # 判斷原價與優惠價是否有填寫來決定預設 index
+                has_orig = bool(p_orig_price.strip())
+                has_disc = bool(p_disc_price.strip())
+                
+                if has_orig and has_disc:
+                    discount_default_index = 1  # 💡 優化 1：原價與優惠價皆有填，預設為限定折扣
+                    disc_key_status = "has_both"
+                else:
+                    discount_default_index = 0  # 💡 優化 2：其餘狀況（如只填原價），預設為原價販售
+                    disc_key_status = "orig_only"
+
+                discount_type = st.radio(
+                    f"折扣屬性 ({i})", 
+                    ["原價販售 (填無)", "限定折扣 (填日期區間)"], 
+                    index=discount_default_index, 
+                    key=f"discount_type_{i}_{cid}_{v_key_part}_{disc_key_status}" # 透過狀態動態換鎖匙，實現無延遲連動
+                )
+                
                 if discount_type == "原價販售 (填無)":
                     final_discount_time = "無"
                 else:
@@ -173,7 +184,6 @@ with tab1:
             if p_name:
                 products_data.append({"code": p_code, "name": p_name, "orig_price": p_orig_price, "disc_price": p_disc_price, "stock": p_stock, "validity": final_validity_text, "desc": p_desc, "terms": p_terms, "sell_time": final_sell_time, "discount_time": final_discount_time})
 
-    # 生成按鈕
     if st.button("🚀 生成完整票券 Excel 資料表", type="primary", key="btn_gen_excel"):
         if len(products_data) == 0:
             st.error("❌ 請至少填寫一項商品的『商品名稱/規格』才能進行 Excel 匯出！")
@@ -239,7 +249,7 @@ with tab1:
         st.download_button(label="💾 點我下載 2026 新規純文字 Excel 檔案", data=st.session_state["final_excel_bytes"], file_name=st.session_state["final_file_name"], mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
 
 # ==========================================
-# 🖼️ 分頁二：全新官方圖片規格一鍵裁剪下載工具
+# 🖼️ 分頁二：官方圖片規格一鍵裁剪下載工具
 # ==========================================
 with tab2:
     st.title("🖼️ LINE Pay 官方圖片規格一鍵裁切下載工具")
@@ -247,8 +257,6 @@ with tab2:
     
     st.write("---")
     
-    # LOGO 部分
-    st.subheader("① 店家形象 LOGO（自動調整為 300x300 px）")
     logo_tool_file = st.file_uploader("選擇 LOGO 圖片", type=["jpg", "jpeg", "png"], key=f"tool_logo_{cid}")
     if logo_tool_file:
         img_l = Image.open(logo_tool_file).resize((300, 300))
@@ -259,8 +267,6 @@ with tab2:
 
     st.write("---")
 
-    # Banner 部分
-    st.subheader("② 店家首頁 Banner 橫幅（自動調整為 750x454 px）")
     banner_tool_file = st.file_uploader("選擇 Banner 圖片", type=["jpg", "jpeg", "png"], key=f"tool_banner_{cid}")
     if banner_tool_file:
         img_b = Image.open(banner_tool_file).resize((750, 454))
@@ -271,12 +277,10 @@ with tab2:
 
     st.write("---")
 
-    # 商品圖部分 (5 ~ 10 張)
-    st.subheader("③ 商品主要及附加照片（自動調整為 640x640 px，支援最多10張）")
     prod_tool_files = st.file_uploader("選擇 5 ~ 10 張商品照片（可複選多張上傳）", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key=f"tool_prod_{cid}")
     
     if prod_tool_files:
-        valid_prods = prod_tool_files[:10]  # 強制上限10張
+        valid_prods = prod_tool_files[:10]
         if len(valid_prods) < 5:
             st.warning(f"💡 目前上傳了 {len(valid_prods)} 張商品圖，官方建議上架準備 5 ~ 10 張照片。")
         else:
@@ -286,7 +290,6 @@ with tab2:
         
         with zipfile.ZipFile(zip_buffer, "w") as zip_file:
             st.write("👇 **單張照片預覽與個別下載：**")
-            
             for idx, p_file in enumerate(valid_prods):
                 img_p = Image.open(p_file).resize((640, 640))
                 p_buf = io.BytesIO()
@@ -296,25 +299,16 @@ with tab2:
                 zip_file.writestr(f"Product_Image_{idx+1}_640x640.png", p_bytes)
                 
                 p_col1, p_col2 = st.columns([1, 4])
-                with p_col1:
-                    st.image(img_p, width=120)
+                with p_col1: st.image(img_p, width=120)
                 with p_col2:
                     st.write(f"**商品照片 {idx+1}** (規格：640x640 px)")
                     st.download_button(f"📥 下載單張商品圖 {idx+1}", data=p_bytes, file_name=f"Product_Image_{idx+1}.png", mime="image/png", key=f"dl_single_p_{idx}_{cid}")
         
         st.write("---")
-        st.write("🎁 **高效率大絕招：**")
-        st.download_button(
-            label="🔥 點我一鍵打包下載所有商品圖 (ZIP 壓縮檔)",
-            data=zip_buffer.getvalue(),
-            file_name="LINEPay_640x640_商品照片包.zip",
-            mime="application/zip",
-            type="primary",
-            use_container_width=True
-        )
+        st.download_button(label="🔥 點我一鍵打包下載所有商品圖 (ZIP 壓縮檔)", data=zip_buffer.getvalue(), file_name="LINEPay_640x640_商品照片包.zip", mime="application/zip", type="primary", use_container_width=True)
 
 # ==========================================
-# 🧹 全局通用清除按鈕（放在網頁最底部）
+# 🧹 全局通用清除按鈕
 # ==========================================
 st.write("---")
 if st.button("🧹 清除所有內容（做下一家店 / 清空照片）", use_container_width=True, key="btn_global_clear"):
