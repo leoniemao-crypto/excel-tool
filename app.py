@@ -79,7 +79,7 @@ with tab1:
                 t_now = datetime.now()
                 display_name = p_name if p_name else f"（第{i}項商品名稱/規格）"
 
-                # 💡 核心優化 1 & 4：若選「常態商品」，強制鎖定格式二，自動套用星號 *
+                # 💡 核心優化 1：若選「常態商品」，只能對應格式二，並自動代入自訂天數 (最大 150 天)
                 if validity_type == "常態商品 (自訂天數，最大150天)":
                     p_valid_days = st.number_input(f"常態商品兌換天數 ({i})", min_value=1, max_value=150, value=50, key=f"p_valid_days_{i}_{cid}")
                     start_date_calc = t_now + timedelta(days=7)
@@ -126,12 +126,13 @@ with tab1:
                         final_validity_text = f"*本券可兌換{display_name}，兌換期間為{start_d}至{end_d}止。"
                     st.code(final_validity_text, language="text")
 
+                # 💡 優化 1：商品販售時間需要跟兌換類型一致
                 st.write("**🛒 商品販售時間**")
-                sell_type = st.radio(f"販售屬性 ({i})", ["常態商品 (填無)", "季節性商品 (填日期區間)"], key=f"sell_type_{i}_{cid}")
-                
-                if sell_type == "常態商品 (填無)":
+                if validity_type == "常態商品 (自訂天數，最大150天)":
+                    st.info("💡 兌換類型為【常態商品】，商品販售時間已限定並鎖定為：常態商品 (填無)")
                     final_sell_time = "無"
                 else:
+                    st.info("💡 兌換類型為【季節商品】，商品販售時間已限定並鎖定為：季節性商品 (填日期區間)")
                     s1, s2 = st.columns(2)
                     with s1:
                         s_s = st.date_input(f"販售開始日 ({i})", value=t_now, key=f"s_s_{i}_{cid}")
@@ -139,17 +140,24 @@ with tab1:
                         s_e = st.date_input(f"販售結束日 ({i})", value=t_now + timedelta(days=14), key=f"s_e_{i}_{cid}")
                     final_sell_time = f"{s_s.strftime('%Y/%m/%d')} 至 {s_e.strftime('%Y/%m/%d')}"
 
+                # 💡 優化 2：選擇限定折扣，折扣開始日與結束日預設跟常態商品已自動計算日一樣，但保有調整設定
                 st.write("**🏷️ 商品折扣時間**")
                 discount_type = st.radio(f"折扣屬性 ({i})", ["原價販售 (填無)", "限定折扣 (填日期區間)"], key=f"discount_type_{i}_{cid}")
                 
                 if discount_type == "原價販售 (填無)":
                     final_discount_time = "無"
                 else:
+                    # 折扣日期的預設值：預設跟常態商品一樣（製作日+7天 至 製作日+7天+xx天）
+                    # 即使選季節商品，我們也一樣套用 default 7天 與 相對天數（季節預設套用50天）
+                    calc_days = p_valid_days if validity_type == "常態商品 (自訂天數，最大150天)" else 50
+                    default_discount_start = t_now + timedelta(days=7)
+                    default_discount_end = default_discount_start + timedelta(days=calc_days)
+                    
                     d1, d2 = st.columns(2)
                     with d1:
-                        d_s = st.date_input(f"折扣開始日 ({i})", value=t_now, key=f"d_s_{i}_{cid}")
+                        d_s = st.date_input(f"折扣開始日 ({i})", value=default_discount_start, key=f"d_s_{i}_{cid}")
                     with d2:
-                        d_e = st.date_input(f"折扣結束日 ({i})", value=t_now + timedelta(days=7), key=f"d_e_{i}_{cid}")
+                        d_e = st.date_input(f"折扣結束日 ({i})", value=default_discount_end, key=f"d_e_{i}_{cid}")
                     final_discount_time = f"{d_s.strftime('%Y/%m/%d')} 至 {d_e.strftime('%Y/%m/%d')}"
 
             st.write("---")
