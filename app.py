@@ -1,28 +1,11 @@
-import os
-import sys
-import subprocess
-import importlib
-
-# 🚀 終極防錯：在網頁資料夾內建立專屬工具箱，強制繞過雲端系統安裝 Bug
-local_libs = os.path.join(os.getcwd(), "local_packages")
-if local_libs not in sys.path:
-    sys.path.insert(0, local_libs)
-
-for package, import_name in [("openpyxl", "openpyxl"), ("Pillow", "PIL")]:
-    try:
-        importlib.import_module(import_name)
-    except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--target", local_libs, package])
-        importlib.invalidate_caches()
-
-# --- LINE Pay 票券雙效終極大平台主程式 ---
+# --- LINE Pay 票券雙效終極大平台（極速優化版） ---
 import streamlit as st
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from PIL import Image
 from datetime import datetime, timedelta
 import io
-import zipfile  # 內建庫，用於多張商品圖打包下載
+import zipfile
 
 st.set_page_config(page_title="LINE Pay 新規大平台", layout="wide")
 
@@ -45,12 +28,13 @@ with tab1:
     st.subheader("🏢 實際商品(服務)提供者基本資料填寫")
     c1, c2, c3 = st.columns(3)
     with c1:
+        store_mid = st.text_input("MID (商店代號)", placeholder="例如：700123456", key=f"store_mid_{cid}") # 💡 新增：MID 欄位
         brand_name = st.text_input("品牌名稱 (兼商店名稱)", placeholder="例如：笨道策展咖啡", key=f"brand_name_{cid}")
-        store_tax_id = st.text_input("商店統編", value="24941093", key=f"store_tax_id_{cid}")
     with c2:
+        store_tax_id = st.text_input("商店統編", value="24941093", key=f"store_tax_id_{cid}")
         store_address = st.text_input("商店地址", value="台北市南港區", key=f"store_address_{cid}")
-        store_phone1 = st.text_input("商店電話 1", value="0912345678", key=f"store_phone1_{cid}")
     with c3:
+        store_phone1 = st.text_input("商店電話 1", value="0912345678", key=f"store_phone1_{cid}")
         store_phone2 = st.text_input("商店電話 2", value="02-6631-5166", key=f"store_phone2_{cid}")
 
     # 三大公版條款文字庫
@@ -83,7 +67,6 @@ with tab1:
                 v_start_obj = t_now
                 v_end_obj = t_now + timedelta(days=50)
 
-                # 💡 1. 常態商品邏輯
                 if validity_type == "常態商品 (自訂天數，最大150天)":
                     p_valid_days = st.number_input(f"常態商品兌換天數 ({i})", min_value=1, max_value=150, value=50, key=f"p_valid_days_{i}_{cid}")
                     start_date_calc = t_now + timedelta(days=7)
@@ -99,7 +82,6 @@ with tab1:
                     st.write("💡 常態商品固定套用格式二文案：")
                     st.code(final_validity_text, language="text")
 
-                # 💡 2. 季節商品邏輯
                 else:
                     vd1, vd2 = st.columns(2)
                     with vd1:
@@ -129,7 +111,6 @@ with tab1:
                         final_validity_text = f"*本券可兌換{display_name}，兌換期間為{start_d}至{end_d}止。"
                     st.code(final_validity_text, language="text")
 
-                # 💡 3. 商品販售時間設定
                 st.write("**🛒 商品販售時間設定**")
                 sell_default_index = 0 if validity_type == "常態商品 (自訂天數，最大150天)" else 1
                 sell_type = st.radio(f"販售屬性 ({i})", ["常態商品 (填無)", "季節性商品 (填日期區間)"], index=sell_default_index, key=f"sell_type_{i}_{cid}_{v_key_part}")
@@ -144,25 +125,22 @@ with tab1:
                         s_e = st.date_input(f"販售結束日 ({i})", value=v_end_obj, key=f"s_e_{i}_{cid}_{start_d}_{end_d}")
                     final_sell_time = f"{s_s.strftime('%Y/%m/%d')} 至 {s_e.strftime('%Y/%m/%d')}"
 
-                # 💡 4. 商品折扣時間設定 (智慧雙價格判斷優化)
                 st.write("**🏷️ 商品折扣時間設定**")
-                
-                # 判斷原價與優惠價是否有填寫來決定預設 index
                 has_orig = bool(p_orig_price.strip())
                 has_disc = bool(p_disc_price.strip())
                 
                 if has_orig and has_disc:
-                    discount_default_index = 1  # 💡 優化 1：原價與優惠價皆有填，預設為限定折扣
+                    discount_default_index = 1
                     disc_key_status = "has_both"
                 else:
-                    discount_default_index = 0  # 💡 優化 2：其餘狀況（如只填原價），預設為原價販售
+                    discount_default_index = 0
                     disc_key_status = "orig_only"
 
                 discount_type = st.radio(
                     f"折扣屬性 ({i})", 
                     ["原價販售 (填無)", "限定折扣 (填日期區間)"], 
                     index=discount_default_index, 
-                    key=f"discount_type_{i}_{cid}_{v_key_part}_{disc_key_status}" # 透過狀態動態換鎖匙，實現無延遲連動
+                    key=f"discount_type_{i}_{cid}_{v_key_part}_{disc_key_status}"
                 )
                 
                 if discount_type == "原價販售 (填無)":
@@ -188,11 +166,14 @@ with tab1:
         if len(products_data) == 0:
             st.error("❌ 請至少填寫一項商品的『商品名稱/規格』才能進行 Excel 匯出！")
         else:
-            b_display = brand_name if brand_name else "（請填寫 brand_name）"
+            b_display = brand_name if brand_name else "（請填寫品牌名稱）"
+            m_display = store_mid if store_mid else "（請填寫 MID）"
             notices = f"1. 使用本券請至 {b_display} 直接出示本券掃碼兌換（請將螢幕亮度調到最大）。\n2. 本券恕不得更換現金及轉售。\n3. 使用本券時須符合本券載明之品項與規格。因購買時LINE Pay已開立發票給購買者，兌換時不另開立發票。商品兌換後，恕無法提供退貨及換貨。\n4. 商店僅提供兌換本券商品的服務，若對兌換之商品有任何問題請洽門市人員，其他本服務相關問題請聯繫連加網路商業股份有限公司（下稱LINE Pay）客服。\n5. 本券不記名，僅限兌換一次，不得重複使用，任何人持有皆可兌換，請自行妥善保管。\n6. 本券之兌換與銷售，恕不與商店所有折扣、優惠、各行銷活動合併使用。\n7. 有關本券之使用、兌換、取消及補發之條款及條件，及本服務之完整內容，請詳見「服務條款」。\n8. 本券如未於期限內兌換，費用將全額退款給原購買者。"
             issuer_info = "連加網路商業股份有限公司\n地址：臺北市南港區經貿二路121號18樓\n電話：02-3518-7600\n統編：24941093"
             guarantee_info = "本服務所發行之票券金額，皆自發行日起存入發行人於國泰世華商業銀行開立之信託帳戶，專款專用。所謂專用，係指供發行人履行交付商品或提供服務義務使用，前述信託期間自出售日起算至少一年。"
-            provider_info = f"商店名稱：{b_display}\n地址：{store_address}\n電話：{store_phone1} / {store_phone2}\n統編：{store_tax_id}"
+            
+            # 💡 已智慧整合：將 MID 揉入實際商品提供者欄位，維持 15 欄新規規格
+            provider_info = f"MID：{m_display}\n商店名稱：{b_display}\n地址：{store_address}\n電話：{store_phone1} / {store_phone2}\n統編：{store_tax_id}"
 
             wb = openpyxl.Workbook()
             ws = wb.active
