@@ -1,4 +1,21 @@
-# --- LINE Pay 票券雙效終極大平台（極速優化版） ---
+import os
+import sys
+import subprocess
+import importlib
+
+# 🚀 終極自我修復：強制確認並自動安裝所需工具箱，解決 openpyxl 找不到的問題
+local_libs = os.path.join(os.getcwd(), "local_packages")
+if local_libs not in sys.path:
+    sys.path.insert(0, local_libs)
+
+for package, import_name in [("openpyxl", "openpyxl"), ("Pillow", "PIL")]:
+    try:
+        importlib.import_module(import_name)
+    except ImportError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--target", local_libs, package])
+        importlib.invalidate_caches()
+
+# --- LINE Pay 票券雙效終極大平台主程式 ---
 import streamlit as st
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -28,7 +45,7 @@ with tab1:
     st.subheader("🏢 實際商品(服務)提供者基本資料填寫")
     c1, c2, c3 = st.columns(3)
     with c1:
-        store_mid = st.text_input("MID (商店代號)", placeholder="例如：700123456", key=f"store_mid_{cid}") # 💡 新增：MID 欄位
+        store_mid = st.text_input("MID (商店代號)", placeholder="例如：700123456", key=f"store_mid_{cid}")
         brand_name = st.text_input("品牌名稱 (兼商店名稱)", placeholder="例如：笨道策展咖啡", key=f"brand_name_{cid}")
     with c2:
         store_tax_id = st.text_input("商店統編", value="24941093", key=f"store_tax_id_{cid}")
@@ -171,8 +188,6 @@ with tab1:
             notices = f"1. 使用本券請至 {b_display} 直接出示本券掃碼兌換（請將螢幕亮度調到最大）。\n2. 本券恕不得更換現金及轉售。\n3. 使用本券時須符合本券載明之品項與規格。因購買時LINE Pay已開立發票給購買者，兌換時不另開立發票。商品兌換後，恕無法提供退貨及換貨。\n4. 商店僅提供兌換本券商品的服務，若對兌換之商品有任何問題請洽門市人員，其他本服務相關問題請聯繫連加網路商業股份有限公司（下稱LINE Pay）客服。\n5. 本券不記名，僅限兌換一次，不得重複使用，任何人持有皆可兌換，請自行妥善保管。\n6. 本券之兌換與銷售，恕不與商店所有折扣、優惠、各行銷活動合併使用。\n7. 有關本券之使用、兌換、取消及補發之條款及條件，及本服務之完整內容，請詳見「服務條款」。\n8. 本券如未於期限內兌換，費用將全額退款給原購買者。"
             issuer_info = "連加網路商業股份有限公司\n地址：臺北市南港區經貿二路121號18樓\n電話：02-3518-7600\n統編：24941093"
             guarantee_info = "本服務所發行之票券金額，皆自發行日起存入發行人於國泰世華商業銀行開立之信託帳戶，專款專用。所謂專用，係指供發行人履行交付商品或提供服務義務使用，前述信託期間自出售日起算至少一年。"
-            
-            # 💡 已智慧整合：將 MID 揉入實際商品提供者欄位，維持 15 欄新規規格
             provider_info = f"MID：{m_display}\n商店名稱：{b_display}\n地址：{store_address}\n電話：{store_phone1} / {store_phone2}\n統編：{store_tax_id}"
 
             wb = openpyxl.Workbook()
